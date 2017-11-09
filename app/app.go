@@ -3,9 +3,11 @@ package app
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"github.com/codegangsta/cli"
 	"log"
 	"os"
+	"sync"
 )
 
 var ErrDiff = errors.New("diff files fail")
@@ -34,17 +36,21 @@ func appAction(c *cli.Context) (err error) {
 //文件内容比对
 func filesdiff(sourceFilePath, targetFilePath, output string) error {
 
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	wg.Add(1)
 	//源文件内容
-	sources, err := readFile(sourceFilePath)
-	if err != nil {
-		return err
-	}
 
-	//目标文件内容
-	targets, err := readFile(targetFilePath)
-	if err != nil {
-		return err
-	}
+	sources := make([]string, 0, 100)
+	go readFile(sourceFilePath, &sources, &wg)
+
+	targets := make([]string, 0, 100)
+	go readFile(targetFilePath, &targets, &wg)
+
+	wg.Wait()
+
+	fmt.Printf("sources files len : %d\n", len(sources))
+	fmt.Printf("targets files len : %d\n", len(targets))
 
 	diffs := DiffOnly(sources, targets)
 
@@ -74,22 +80,24 @@ func filesdiff(sourceFilePath, targetFilePath, output string) error {
 }
 
 //读取文件内容
-func readFile(filepath string) ([]string, error) {
+func readFile(filepath string, out *[]string, wg *sync.WaitGroup) error {
 	f, err := os.Open(filepath)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	defer f.Close()
+	defer func() {
+		f.Close()
+		wg.Done()
+	}()
 
-	out := []string{}
 	s := bufio.NewScanner(f)
 	for s.Scan() {
 		if t := s.Text(); t != "" {
-			out = append(out, t)
+			*out = append(*out, t)
 		}
 	}
 	log.Printf("read  %s completed !\n", filepath)
-	return out, s.Err()
+	return s.Err()
 }
 
 //程序主入口
