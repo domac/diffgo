@@ -92,6 +92,32 @@ func DiffOnly(seq1, seq2 []string) (diff []DiffRecord) {
 	return
 }
 
+func DiffSimpleDictInsert(oldDict, newDict map[string]string) (diff []DiffRecord) {
+	for k, v := range newDict {
+		if v == "" {
+			continue
+		}
+		if _, ok := oldDict[k]; !ok {
+			dr := DiffRecord{v, RightOnly}
+			diff = append(diff, dr)
+		}
+	}
+	return diff
+}
+
+func DiffSimpleDictDelete(oldDict, newDict map[string]string) (diff []DiffRecord) {
+	for k, v := range oldDict {
+		if v == "" {
+			continue
+		}
+		if _, ok := newDict[k]; !ok {
+			dr := DiffRecord{v, LeftOnly}
+			diff = append(diff, dr)
+		}
+	}
+	return diff
+}
+
 // HTMLDiff returns the results of diffing seq1 and seq2 as an HTML
 // string. The resulting HTML is a table without the opening and
 // closing table tags. Each table row represents a DiffRecord. The
